@@ -1,4 +1,4 @@
-# Time Series Analysis Project – ts-passengers-wind-analysis
+# Time Series Analysis Project
 
 This repository contains a project prepared for the course **Time Series Analysis**, carried out as part of university coursework.
 
