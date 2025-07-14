@@ -13,3 +13,29 @@ Consider Mateusz’s time series from Lab 1 task 4.2 (i.e., wind speed in Delhi 
 - Plot the periodogram. How can a periodogram be used to transform your data?  
 - Make all necessary transformations to get a stationary time series (noise).  
 - If possible, choose the ARMA (p, q) model for stationary noise.
+
+## Tools & Methods Used
+
+- **R language** (version 4.x)
+- Time series modeling: `ts()`, `diff()`, `BoxCox.lambda()`, `acf()`, `pacf()`, `sarima()`
+- Forecasting with ARIMA models (including ARIMA(p,d,q) fitting and prediction)
+- Periodogram analysis using Fast Fourier Transform (FFT)
+- Statistical tests:
+  - Augmented Dickey-Fuller test (`adf.test()`)
+  - Ljung-Box test (residual analysis)
+- Visualization: `plot.ts()`, `monthplot()`, periodograms
+
+## Project Report
+
+The complete analysis, including plots and interpretation, is available in the following HTML report:
+
+👉 [View the report](report/ts_project.html)
+
+## Authors
+
+- Sylwester Kubik
+- Mateusz Mglej
+- Aleksandra Rewera
+
+*Year:* 2025
+
