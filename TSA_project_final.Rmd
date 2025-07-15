@@ -1,0 +1,513 @@
+---
+title: "Project for Time Series Analysis"
+author: "Sylwester Kubik, Mateusz Mglej, Agnieszka Noga, Aleksandra Rewera"
+date: 16.01.2025
+output: 
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: vignette
+    toc: yes
+---
+
+```{css echo=FALSE}
+body{
+  background-color: #fafcff
+}
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+library(forecast)
+library(tseries)
+library(astsa)
+
+```
+
+# Task 1
+
+-   Consider the monthly numbers of passengers (file *dane_RNKM3.csv*).
+
+-   Make numbers of passengers forecasts for each month of the first half of 2025.
+
+## Working with data
+
+```{r}
+
+data_read <- read.csv('dane_RNKM3.csv')
+
+```
+
+Creating a time series and its plot.
+
+```{r}
+data <- ts(data_read[2], start = c(2010,1), frequency = 12)
+
+plot.ts(data,
+  col = "blue",
+  lwd = 1,
+  main = "Number of Passengers Over Time (2010-2024)",
+  xlab = "Time",
+  ylab = "Number of Passengers",
+  cex.main = 1.5,
+  cex.lab = 1.2,
+  cex.axis = 1.1)
+abline(h=mean(data), col='1906', lwd = 1)
+
+```
+
+We notice a certain **trend**, mainly increasing, with two noticeable drops. Therefore, we assume that there is **no seasonality**.
+
+### Box Cox transformation
+
+```{r}
+
+lamdba <- BoxCox.lambda(data)
+lamdba
+
+```
+
+We obtain $\lambda \sim 1$. This means that we do not need a Box-Cox transformation.
+
+### ACF and PACF plots
+
+```{r}
+
+par(mfrow=c(1,2))
+
+acf(data,  main=" ",lag.max=48, ci=.95)
+pacf(data, main=" ",lag.max=48, ci=.95)
+
+```
+
+The ACF tends to zero very slowly, so there is probably no stationarity. We can verify whether the series is stationary using *the Dickey-Fuller test*.
+
+```{r}
+
+adf.test(data)
+
+```
+
+The augmented Dickey-Fuller test don't reject null hypothesis about non-starionarity, we are in alternative, so we can assume that our data is non-stationary. Therefore, there is no need to use periodogram to check if the seasonality of data.
+
+### Seasonality
+
+```{r}
+
+monthplot(data)
+
+```
+
+*Monthplot* confirms that there is **no seasonality** in our time series, but we can observe a visible **trend**.
+
+### Trend
+
+To remove the trend, we will use the *difference operator* with $lag=1$.
+
+```{r}
+
+D_data<-diff(data,lag=1)
+plot(D_data,
+  col = "blue",
+  lwd = 1,
+  main = "Differenced Time Series",
+  xlab = "Time",
+  ylab = "Differenced Number of Passengers",
+  cex.main = 1.5,
+  cex.lab = 1.2,
+  cex.axis = 1.1)
+abline(h=mean(D_data), col='1906')
+```
+
+As we can see, we effectively remove the trend. Let's check if our modified data is stationary.
+
+```{r}
+par(mfrow=c(1,2))
+LagMax<-48
+acf(na.omit(D_data), main='', lag.max=LagMax)
+pacf(na.omit(D_data), main='', lag.max=LagMax)
+
+adf.test(D_data)
+```
+
+Both on the ACF and PACF plots, the data tends to zero. Additionally, on the ACF plot, the data tends to zero very quickly. Thus, the modified data are **stationary**, as confirmed by the Dickey-Fuller test. After three lags, the ACF values are close to 0, which may indicate that a model with $q=3$ fits this data well.
+
+## Fitting ARIMA(0,1,q) 
+
+### ARIMA(0,1,3)
+
+```{r, results=FALSE}
+
+model_013 <- sarima(D_data,0,1,3)
+
+```
+
+```{r}
+
+model_013$ICs
+
+model_013$ttable
+
+```
+
+We can see *the constant* is not a significant parameter, so we can omit it.
+
+### ARIMA(0,1,3) no constant
+
+```{r, results=FALSE}
+
+model_013_nc <- sarima(D_data,0,1,3, no.constant = TRUE)
+
+```
+
+```{r}
+
+model_013_nc$ICs
+
+model_013_nc$ttable
+
+```
+
+We observe that all coefficients are significantly important in explaining the residuals. Unfortunately, this model is not adequate. It does not satisfy *the residual assumption* based on the Ljung-Box test.
+
+Let's see the ACF and PACF plots again for modified data.
+
+```{r}
+
+par(mfrow=c(1,2))
+LagMax<-48
+acf(na.omit(D_data), main='', lag.max=LagMax)
+pacf(na.omit(D_data), main='', lag.max=LagMax)
+
+```
+
+Based on above plots let's consider such models:
+
+-   ARIMA(1,1,3)
+
+-   ARIMA(1,1,8)
+
+-   ARIMA(1,1,2)
+
+## Fitting ARIMA(p,1,q)
+
+### ARIMA(1,1,3)
+
+```{r, results=FALSE, warning=FALSE}
+
+model_113 <- sarima(D_data,1,1,3, no.constant = FALSE)
+
+```
+
+```{r}
+
+model_113$ICs
+
+model_113$ttable
+
+```
+
+*ma3* is not a significant coefficient in this model.
+
+### ARIMA(1,1,8)
+
+```{r, results=FALSE}
+
+model_118 <- sarima(D_data,1,1,8, no.constant = FALSE) 
+
+```
+
+```{r}
+
+model_118$ICs
+
+model_118$ttable
+
+```
+
+Here we have *7 coefficients* that are not significant in this model.
+
+
+### ARIMA(1,1,2)
+
+```{r, results=FALSE}
+
+model_112 <- sarima(D_data,1,1,2, no.constant = FALSE)
+
+```
+
+```{r}
+
+model_112$ICs
+
+model_112$ttable
+
+```
+
+In this model only *constant* is no significant coefficient. Now, let's check model without constant.
+
+### ARIMA(1,1,2) no constant
+
+```{r, results=FALSE}
+
+model_112_nc <- sarima(D_data,1,1,2, no.constant = TRUE)
+
+```
+
+```{r}
+
+model_112_nc$ICs
+
+model_112_nc$ttable
+
+```
+
+In this model *every coefficient is important*.
+
+### Summary
+
+```{r}
+
+model_112$ICs
+model_112$ttable
+
+
+model_112_nc$ICs
+model_112_nc$ttable
+
+```
+
+The model quality coefficients indicate that *ARIMA(1,1,2) no constant* is slightly better. Therefore, we will also select this model for prediction.
+
+## Forecasting using *sarima.for* function
+
+Let's remind our time series.
+
+```{r}
+
+plot.ts(data,
+  col = "blue",
+  lwd = 1,
+  main = "Number of passengers over time (2010-2024)",
+  xlab = "Time",
+  ylab = "Number of passengers",
+  cex.main = 1.5,
+  cex.lab = 1.2,
+  cex.axis = 1.1)
+abline(v=2016, h=mean(data), col=c('1906','2025'))
+
+```
+
+Using sarima.for function for data based on ARIMA(1,1,2) without constant.
+
+```{r}
+
+pred <- sarima.for(data, n.ahead=6,1,1,2, no.constant = TRUE)
+
+```
+
+Prediction and confidence levels based of standard errors.
+
+```{r}
+
+future <- data.frame(se_min=pred$pred-pred$se, prediction=pred$pred,
+                    se_max=pred$pred+pred$se)
+
+future <- ts(future, start = c(2025,1), frequency = 12)
+
+future
+```
+
+Comparing both plots we should remember that the Y-axes differ for each plot (the scales are different). As we expected, the prediction shows an increasing trend. The Sarima.for function returns a list of predictions and standard errors.
+
+# Task 2
+
+-   Consider the Mateusz's time series from Lab 1 task 4.2 (i.e wind speed in Delhi from 1st January 2013 to 1st January 2017)
+
+-   Plot the periodogram. How can a periodogram be used to transform your data?
+
+-   Make all necessary transformations to get a stationary time series (noise).
+
+-   If possible, choose the ARMA (p, q) model for stationary noise.
+
+## Loading data
+
+
+```{r}
+data_read <- read.csv('DailyDelhiClimateTrain.csv')
+
+data <- ts(data_read$wind_speed, start = c(2013,1,1), frequency = 365)
+```
+
+## Working with data
+
+```{r}
+plot.ts(data,
+  col = "blue",
+  lwd = 1,
+  main = "Wind Speed Time Series (2013-2017)",
+  xlab = "Time",
+  ylab = "Wind Speed (m/s)",
+  cex.main = 1.5,
+  cex.lab = 1.2,
+  cex.axis = 1.1)
+```
+
+This time series shows daily wind speed in Delhi from 1st January 2013 to 1st January 2017.
+
+We can observe some trend - more wind in summertime and some strange values (for example one over 40 kmph in 2013).
+
+### ACF i PACF
+
+```{r}
+par(mfrow=c(1,2))
+LagMax <- 365*4
+acf(data,  main=" ",lag.max=LagMax, ci=.95)
+pacf(data, main=" ",lag.max=LagMax, ci=.95)
+```
+
+The plots show that there is seasonality in data. Let's check stationarity with Dickey-Fuller test.
+
+```{r}
+adf.test(data)
+```
+
+Test reject null hypothesis of non-stationarity. Our data is stationary.
+
+### Periodogram
+
+```{r}
+par(mfrow=c(1,1))
+n = length(data)
+Per= Mod(fft(data-mean(data)))^2/n
+Freq = (1:(n/2) -1)/n
+plot(Freq[1:(n/2)], Per[1:(n/2)], type='h', lwd=2, ylab="Periodogram",
+     xlab="Frequency", col="blue")
+
+nn=n/2
+u = which.max(Per[1:nn])
+uu = which.max(Per[1:nn][-u])
+
+u; 1/Freq[u]
+uu; 1/Freq[uu]
+```
+
+We can see that we have annual seasonality.
+
+### Seasonality
+
+To remove the seasonality, we will use the difference operator with lag=365.
+
+```{r}
+D_data<-diff(data,lag=365)
+plot(D_data,
+  col = "blue",
+  lwd = 1,
+  main = "Differenced Time Series",
+  xlab = "Time",
+  ylab = "Wind Speed (m/s)",
+  cex.main = 1.5,
+  cex.lab = 1.2,
+  cex.axis = 1.1)
+abline(h=mean((D_data)))
+```
+
+The annual seasonality has been effectively removed.
+
+ACF i PACF plots for modified data
+
+```{r}
+par(mfrow=c(1,2))
+acf(na.omit(D_data), main='', lag.max=LagMax)
+pacf(na.omit(D_data), main='', lag.max=LagMax)
+```
+
+
+### Trend
+
+Now we will remove the trend.
+
+```{r}
+par(mfrow=c(1,1))
+DD_data<-diff(D_data,lag=1)
+plot(DD_data,
+  col = "blue",
+  lwd = 1,
+  main = "Second-Order Differenced Time Series",
+  xlab = "Time",
+  ylab = "Differenced Wind Speed",
+  cex.main = 1.5,
+  cex.lab = 1.2,
+  cex.axis = 1.1)
+abline(h=mean(DD_data))
+```
+
+We can see that there is only noise, without trend and without previously removed seasonality.
+
+```{r}
+par(mfrow=c(1,2))
+acf(na.omit(DD_data), main='', lag.max=LagMax)
+pacf(na.omit(DD_data), main='', lag.max=LagMax)
+```
+
+After lag = 1, the data tends to zero. We will check if the modified data is stationary.
+
+```{r}
+adf.test(DD_data)
+```
+
+So this data is stationary.
+
+## Fitting models to noise
+
+### ARMA(1,0)
+
+```{r, results = FALSE}
+par(mfrow=c(1,1))
+model_100 <- sarima(DD_data, 1,0,0, no.constant = TRUE)
+```
+
+```{r}
+model_100$ICs
+model_100$ttable
+```
+
+### ARMA(0,1)
+
+```{r, results = FALSE}
+par(mfrow=c(1,1))
+model_001 <- sarima(DD_data, 0,0,1, no.constant = TRUE)
+```
+
+```{r}
+model_001$ICs
+model_001$ttable
+```
+
+
+### ARMA(1,1)
+
+```{r, results = FALSE}
+par(mfrow=c(1,1))
+model_101 <- sarima(DD_data, 1,0,1)
+```
+
+```{r}
+model_101$ICs
+model_101$ttable
+```
+
+### ARMA(1,1) without constant
+
+```{r, results = FALSE}
+par(mfrow=c(1,1))
+model_101_nc <- sarima(DD_data, 1,0,1, no.constant = TRUE)
+```
+
+```{r}
+model_101_nc$ICs
+model_101_nc$ttable
+```
+
+## Summary
+
+From the constructed models, it follows that model **ARMA(1,1) without mean**  is the best. All variables used in this model are significantly important and the assumptions about residuals are satisfied.
