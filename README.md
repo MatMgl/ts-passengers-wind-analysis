@@ -29,7 +29,7 @@ Consider Mateusz’s time series from Lab 1 task 4.2 (i.e., wind speed in Delhi 
 
 The complete analysis, including plots and interpretation, is available in the following HTML report:
 
-👉 [View the report](TSA_project_final.html)
+👉 [View the report](https://matmgl.github.io/ts-passengers-wind-analysis/TSA_project_final.html)
 
 ## Authors
 
