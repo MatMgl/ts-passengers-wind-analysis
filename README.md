@@ -35,6 +35,7 @@ The complete analysis, including plots and interpretation, is available in the f
 
 - Sylwester Kubik
 - Mateusz Mglej
+- Agnieszka Noga
 - Aleksandra Rewera
 
 *Year:* 2025
